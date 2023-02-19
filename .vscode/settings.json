@@ -1,0 +1,11 @@
+{
+    "workbench.tree.indent": 20,
+    "editor.rulers": [
+        {
+            "column": 120,
+            "color": "#ffc3b5"
+        }
+    ],
+    "editor.minimap.enabled": false,
+    "editor.codeLens": false
+}
