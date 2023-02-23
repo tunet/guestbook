@@ -7,6 +7,8 @@ use App\Repository\CommentRepository;
 use App\SpamChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Bridge\Twig\Mime\NotificationEmail;
+use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Workflow\WorkflowInterface;
@@ -22,6 +24,8 @@ class CommentMessageHandler implements MessageHandlerInterface
         private readonly MessageBusInterface $bus,
         private readonly LoggerInterface $logger,
         WorkflowInterface $commentStateMachine,
+        private readonly MailerInterface $mailer,
+        private readonly string $adminEmail,
     ) {
         $this->workflow = $commentStateMachine;
     }
@@ -49,8 +53,13 @@ class CommentMessageHandler implements MessageHandlerInterface
 
             $this->bus->dispatch($message);
         } elseif ($this->workflow->can($comment, 'publish') || $this->workflow->can($comment, 'publish_ham')) {
-            $this->workflow->apply($comment, $this->workflow->can($comment, 'publish') ? 'publish' : 'publish_ham');
-            $this->entityManager->flush();
+            $email = (new NotificationEmail())
+                ->subject('New comment posted')
+                ->htmlTemplate('emails/comment_notification.html.twig')
+                ->from($this->adminEmail)
+                ->to($this->adminEmail)
+                ->context(['comment' => $comment]);
+            $this->mailer->send($email);
         } else {
             $this->logger->debug(
                 'Dropping comment message',
